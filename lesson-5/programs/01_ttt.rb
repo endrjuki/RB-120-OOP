@@ -139,22 +139,119 @@ module TTTGame # namespace
     end
   end
 
-  Player = Struct.new(:marker, :score)
+  class Player
+    attr_reader :name
+    attr_accessor :marker, :score
+
+    def initialize
+      @name = nil
+      @marker = nil
+      @score = 0
+    end
+  end
+
+  class Human < Player
+    def initialize
+      @name = nil
+      @marker = nil
+      @score = 0
+    end
+
+    def choose_marker
+      puts ""
+      puts "Pick your marker: #{[TTTGame::MARKER_1, TTTGame::MARKER_2].joinor}"
+      choice = nil
+      loop do
+        choice = gets.chomp.upcase
+        break if [TTTGame::MARKER_1, TTTGame::MARKER_2].include?(choice)
+        puts "Invalid choice! pick between #{[TTTGame::MARKER_1, TTTGame::MARKER_2].joinor}!"
+      end
+      @marker = choice
+    end
+
+    def choose_name
+      puts "Please enter your name:"
+      name = nil
+      loop do
+        name = gets.chomp
+        break if !name.empty?
+        puts "Please don't leave the name field blank! Try again!"
+      end
+      @name = name
+    end
+
+    def choose_first_move
+      puts ""
+      puts "Options:"
+      puts "1) You have the first move"
+      puts "2) Computer has the first move"
+      puts ""
+      puts "Enter 1 or 2 to choose"
+
+      choice = nil
+      loop do
+        choice = gets.chomp
+        break if ["1", "2"].include?(choice)
+        puts "Invalid choice, please choose between 1 or 2"
+      end
+      choice
+    end
+  end
+
+  class Computer < Player
+    def choose_name
+      @name = ['Walle', 'Chappie', 'Alita', 'R2D2', 'Marvin'].sample
+    end
+  end
 
   class TTTGame
     include SyntaxTools
 
-    HUMAN_MARKER = 'X'
-    COMPUTER_MARKER = 'O'
-    FIRST_TO_MOVE = HUMAN_MARKER
-    MAX_SCORE = 3
     attr_reader :board, :human, :computer
+
+    MARKER_1 = 'X'
+    MARKER_2 = 'O'
+    FIRST_TO_MOVE = "X"
+    MAX_SCORE = 3
 
     def initialize
       @board = Board.new
-      @human = Player.new(HUMAN_MARKER, 0)
-      @computer = Player.new(COMPUTER_MARKER, 0)
-      @current_marker = FIRST_TO_MOVE
+      @human = Human.new
+      @computer = Computer.new
+      @first_move = :choose # :choose, :computer, :human
+    end
+
+    def setup_game
+      set_names
+      set_first_move
+      set_markers
+      set_current_marker
+    end
+
+    def set_names
+      human.choose_name
+      computer.choose_name
+    end
+
+    def set_first_move
+      return @first_move unless @first_move == :choose
+      answer = human.choose_first_move
+      @first_move = case answer
+                    when '1' then :human
+                    when '2' then :computer
+                    end
+    end
+
+    def set_markers
+      human.choose_marker
+      computer.marker = (human.marker == MARKER_1 ? MARKER_2 : MARKER_1)
+    end
+
+    def set_current_marker
+      @current_marker = case @first_move
+                        when :human then human.marker
+                        when :computer then computer.marker
+                        end
     end
 
     def play
@@ -178,7 +275,7 @@ module TTTGame # namespace
     def display_board_and_score
       display_score
       puts ""
-      puts "You are #{human.marker}. Computer is a #{computer.marker}."
+      puts "You are #{human.marker}. #{computer.name} is a #{computer.marker}."
       puts ""
       board.draw
     end
@@ -190,15 +287,15 @@ module TTTGame # namespace
 
     def update_score
       case board.winning_marker
-      when HUMAN_MARKER
+      when human.marker
         human.score += 1
-      when COMPUTER_MARKER
+      when computer.marker
         computer.score += 1
       end
     end
 
     def play_round
-      display_board_and_score
+      clear_screen_and_display_board
       player_move
       update_score
       display_result
@@ -208,6 +305,7 @@ module TTTGame # namespace
 
     def match_loop
       loop do
+        setup_game
         play_round until grand_winner?
         display_grand_winner
 
@@ -223,7 +321,7 @@ module TTTGame # namespace
     end
 
     def return_grand_winner
-      human.score >= MAX_SCORE ? 'Human' : 'Computer'
+      human.score >= MAX_SCORE ? human.name : computer.name
     end
 
     def display_grand_winner
@@ -233,10 +331,10 @@ module TTTGame # namespace
     def current_player_moves
       if human_turn?
         human_moves
-        @current_marker = COMPUTER_MARKER
+        @current_marker = computer.marker
       else
         computer_moves
-        @current_marker = HUMAN_MARKER
+        @current_marker = human.marker
       end
     end
 
@@ -250,7 +348,7 @@ module TTTGame # namespace
     end
 
     def human_turn?
-      @current_marker == HUMAN_MARKER
+      @current_marker == human.marker
     end
 
     def human_moves
@@ -281,17 +379,17 @@ module TTTGame # namespace
       clear_screen_and_display_board
 
       case board.winning_marker
-      when HUMAN_MARKER
-        puts "You won!"
-      when COMPUTER_MARKER
-        puts "COMPUTER WON!"
+      when human.marker
+        puts "#{human.name} won!"
+      when computer.marker
+        puts "#{computer.name} won!"
       else
         puts "It's a tie"
       end
     end
 
     def display_score
-      puts "Human #{human.score} : #{computer.score} Computer"
+      puts "#{human.name} #{human.score} : #{computer.score} #{computer.name}"
     end
 
     def play_again?
