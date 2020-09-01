@@ -32,16 +32,8 @@ class Player
     @hand = []
   end
 
-
-  def stay
-  end
-
   def busted?
     calculate_score > Game::MAX_SCORE
-  end
-
-  def total
-    # definitely looks like we need to know about "cards" to produce some total
   end
 end
 
@@ -83,7 +75,7 @@ class Card
 end
 
 class Game
-  attr_accessor :player, :dealer, :deck
+  attr_accessor :player, :dealer, :deck, :turn
 
   MAX_SCORE = 21
 
@@ -91,6 +83,7 @@ class Game
     @deck = Deck.new
     @player = Player.new("Bobby")
     @dealer = Dealer.new("Holmes")
+    @turn = :player
   end
 
   def display_welcome_message
@@ -104,20 +97,19 @@ class Game
     puts "Thanks for playing 21. Goodbye!"
   end
 
-  def dealer_hand_helper_method(dealer_hand)
-    case dealer_hand
-    when :visible
+  def dealer_hand_helper_method
+    if !player_turn?
       dealer_score = dealer.calculate_score
       dealer_cards = display_cards(dealer, :display_all)
-    when :invisible
+    else
       dealer_score = '???'
       dealer_cards = display_cards(dealer, :display_only_first)
     end
     [dealer_score, dealer_cards]
   end
 
-  def display_table(dealer_hand=:visible)
-    dealer_score, dealer_cards = dealer_hand_helper_method(dealer_hand)
+  def display_table
+    dealer_score, dealer_cards = dealer_hand_helper_method
 
     puts "----------"
     puts "Player's hand:"
@@ -130,8 +122,28 @@ class Game
   end
 
   # ------- PLAYER TURN
+  def player_turn?
+    turn == :player
+  end
+
+  def next_turn
+    turn == :player ? @turn = :dealer : @turn = :player
+  end
+
   def deal_card(player)
     player.hand << deck.deal
+  end
+
+  def hit(player)
+    deal_card(player)
+    puts "You chose to hit!"
+    sleep(1)
+  end
+
+  def stay(player)
+    puts "You chose to stay!"
+    next_turn
+    sleep(1)
   end
 
   def hit_or_stay
@@ -153,11 +165,54 @@ class Game
   end
 
   def player_turn
+    loop do
+      display_table
 
+      choice = hit_or_stay
+      if choice == 'h'
+        hit(player)
+      else
+        stay(player)
+        break
+      end
+
+      if player_busted?(player)
+        puts "You busted!"
+        display_table
+        next_turn
+        break
+      end
+    end
   end
 
-  def computer_turn
+  def dealer_turn
+    loop do
+      display_table
+      until dealer.calculate_score >= 17
+        hit(dealer)
+        system "clear"
+        display_table
+        sleep(1)
+      end
 
+      if player_busted?(dealer)
+        puts "DEALER BUSTED, YOU WIN!"
+        break
+      end
+
+      puts "Dealer stays"
+      break
+    end
+  end
+
+  def display_result
+    if player.calculate_score > dealer.calculate_score
+      puts "player won!"
+    elsif player.calculate_score == dealer.calculate_score
+      puts "It's a tie!"
+    else
+      puts "Dealer won!"
+    end
   end
 
   def display_cards(player, amount=:display_all)
@@ -179,15 +234,15 @@ class Game
   end
 
   def show_initial_cards
-    display_table(:invisible)
+    display_table
   end
 
   def start
     display_welcome_message
     deal_initial_cards
-    show_initial_cards
-    #player_turn
-    #dealer_turn
+    player_turn
+    dealer_turn
+    display_result
     #show_result
     display_goodbye_message
 
