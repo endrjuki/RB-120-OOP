@@ -36,7 +36,7 @@ class Player
     else
       self.move = ['rock', 'paper', 'scissors'].sample
     end
-  end  
+  end
 
   def human?
     @player_type == :human
@@ -77,7 +77,6 @@ class RPSGame
       puts "#{player.name} won!" if computer.move == 'paper'
       puts "#{computer.name} won!" if computer.move == 'rock'
     end
-
   end
 
   def play_again?
@@ -96,7 +95,7 @@ class RPSGame
 
 	def play
     display_welcome_message
-    
+
     loop do
       human.choose
       computer.choose
