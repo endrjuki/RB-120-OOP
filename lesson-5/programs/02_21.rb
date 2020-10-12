@@ -38,10 +38,7 @@ class Player
 end
 
 class Dealer < Player
-
-  def deal
-    # does the dealer or deck deal?
-  end
+  # implement name functionality perhaps?
 end
 
 class Deck
@@ -91,6 +88,7 @@ class Game
     puts "Welcome to 21"
     puts "PLACEHOLDER"
     sleep(1)
+    # IMPLEMENT 'press any key' functionality here
   end
 
   def display_goodbye_message
@@ -119,6 +117,11 @@ class Game
     puts "Dealer's hand:"
     puts dealer_cards
     puts "Score: #{dealer_score}"
+  end
+
+  def clear_screen_and_display_table
+    system "clear" || system("cls")
+    display_table
   end
 
   # ------- PLAYER TURN
@@ -166,7 +169,7 @@ class Game
 
   def player_turn
     loop do
-      display_table
+      clear_screen_and_display_table
 
       choice = hit_or_stay
       if choice == 'h'
@@ -187,11 +190,11 @@ class Game
 
   def dealer_turn
     loop do
-      display_table
+      clear_screen_and_display_table
+
       until dealer.calculate_score >= 17
+        clear_screen_and_display_table
         hit(dealer)
-        system "clear"
-        display_table
         sleep(1)
       end
 
@@ -233,9 +236,6 @@ class Game
     end
   end
 
-  def show_initial_cards
-    display_table
-  end
 
   def start
     display_welcome_message

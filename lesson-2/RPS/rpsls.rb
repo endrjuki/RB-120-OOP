@@ -4,10 +4,13 @@ class Move
   attr_reader :value
 
   include Comparable
-  VALUES = %w(rock paper scissors)
-  WIN_CONDITION = { 'rock' => %w(scissors),
-                    'paper' => %w(rock),
-                    'scissors' => %w(paper) }
+  WIN_CONDITION = { 'rock' => %w(scissors lizard),
+                    'paper' => %w(rock spock),
+                    'scissors' => %w(paper lizard),
+                    'lizard' => %w(spock paper),
+                    'spock' => %w(rock scissors) }
+
+  VALID_CHOICES = WIN_CONDITION.keys
 
   def initialize(value)
     @value = value
@@ -55,9 +58,9 @@ class Human < Player
     choice = nil
     loop do
       puts ""
-      puts "Please choose rock, paper, or scissors"
+      puts "Please choose between : #{Move::VALID_CHOICES.join(', ')}."
       choice = gets.chomp
-      break if Move::VALUES.include?(choice)
+      break if Move::VALID_CHOICES.include?(choice)
       puts "Sorry, '#{choice}' is not a valid move"
     end
     self.move = Move.new(choice)
@@ -67,29 +70,28 @@ end
 class Computer < Player
   PLAYERS = %w(Bmax R2D2 DUCKY)
 
+  def initialize(last_player=nil)
+    @last_player = last_player
+    super()
+  end
+
   def set_name
-    if name.nil?
-      self.name = PLAYERS.sample
-    else
-      find_new_opponent
-    end
+    self.name = find_new_opponent
   end
 
   def find_new_opponent
-    previous_player = computer.name
-    player_pool = PLAYERS.select { |name| name != previous_player }
-    self.name = player_pool.sample
+    (PLAYERS - [@last_player]).sample
   end
 
   def choose
-    self.move = Move.new(Move::VALUES.sample)
+    self.move = Move.new(Move::VALID_CHOICES.sample)
   end
 end
 
 class RPSGame
   attr_accessor :human, :computer
 
-  MAX_POINTS = 3
+  MAX_POINTS = 1
 
   def initialize
     @human = Human.new
@@ -123,7 +125,7 @@ class RPSGame
   end
 
   def new_opponent
-    @computer = Computer.new
+    @computer = Computer.new(computer.name)
   end
 
   def round_loop

@@ -4,13 +4,16 @@ class Move
   attr_reader :value
 
   include Comparable
-  VALUES = %w(rock paper scissors)
-  WIN_CONDITION = { 'rock' => %w(scissors),
-                    'paper' => %w(rock),
-                    'scissors' => %w(paper) }
+  WIN_CONDITION = { 'rock' => %w(scissors lizard),
+                    'paper' => %w(rock spock),
+                    'scissors' => %w(paper lizard),
+                    'lizard' => %w(spock paper),
+                    'spock' => %w(rock scissors) }
 
-  def initialize(value)
-    @value = value
+  VALID_CHOICES = WIN_CONDITION.keys
+
+  def initialize
+    @value = self.class.to_s.downcase
   end
 
   def to_s
@@ -27,6 +30,12 @@ class Move
     end
   end
 end
+
+class Rock < Move; end
+class Paper < Move; end
+class Scissors < Move; end
+class Lizard < Move; end
+class Spock < Move; end
 
 class Player
   attr_accessor :move, :name, :score
@@ -55,12 +64,12 @@ class Human < Player
     choice = nil
     loop do
       puts ""
-      puts "Please choose rock, paper, or scissors"
+      puts "Please choose between : #{Move::VALID_CHOICES.join(', ')}."
       choice = gets.chomp
-      break if Move::VALUES.include?(choice)
+      break if Move::VALID_CHOICES.include?(choice)
       puts "Sorry, '#{choice}' is not a valid move"
     end
-    self.move = Move.new(choice)
+    self.move = Module.const_get(choice.capitalize).new
   end
 end
 
@@ -82,7 +91,7 @@ class Computer < Player
   end
 
   def choose
-    self.move = Move.new(Move::VALUES.sample)
+    self.move = Module.const_get(Move::VALID_CHOICES.sample.capitalize).new
   end
 end
 
