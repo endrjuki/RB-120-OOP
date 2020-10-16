@@ -1,3 +1,4 @@
+require 'pry'
 module CoreExtensions
   module Array
     def joinor(delimiter=', ', word='or')
@@ -12,19 +13,7 @@ Array.include CoreExtensions::Array
 class Move
   include Comparable
 
-  attr_reader :value
-
-  WIN_CONDITION = { 'rock' => %w(scissors lizard),
-                    'paper' => %w(rock spock),
-                    'scissors' => %w(paper lizard),
-                    'lizard' => %w(spock paper),
-                    'spock' => %w(rock scissors) }
-
-  LOSE_CONDITION = { 'rock' => %w(spock paper),
-                     'paper' => %w(scissors lizard),
-                     'scissors' => %w(rock spock),
-                     'lizard' => %w(rock scissors),
-                     'spock' => %w(paper lizard) }
+  attr_reader :value, :beats, :loses
 
   SHORTHAND_DICTIONARY = { 'r' => 'rock', 'p' => 'paper', 's' => 'scissors',
                            'l' => 'lizard', 'sp' => 'spock' }
@@ -32,22 +21,58 @@ class Move
   VALID_MOVES = SHORTHAND_DICTIONARY.values
   VALID_CHOICES = SHORTHAND_DICTIONARY.to_a.flatten
 
-  def initialize(value)
-    @value = value
-  end
-
   def to_s
     @value
   end
 
   def <=>(other_move)
-    if WIN_CONDITION[value].include?(other_move.value)
+    if beats.include?(other_move.value)
       1
-    elsif WIN_CONDITION[other_move.value].include?(value)
+    elsif other_move.beats.include?(value)
       -1
     else
       0
     end
+  end
+end
+
+class Rock < Move
+  def initialize
+    @value = 'rock'
+    @beats = %w(scissors lizard)
+    @loses = %w(spock paper)
+  end
+end
+
+class Paper < Move
+  def initialize
+    @value = 'paper'
+    @beats = %w(rock spock)
+    @loses = %w(scissors lizard)
+  end
+end
+
+class Scissors < Move
+  def initialize
+    @value = 'scissors'
+    @beats = %w(paper lizard)
+    @loses = %w(rock spock)
+  end
+end
+
+class Lizard < Move
+  def initialize
+    @value = 'lizard'
+    @beats = %w(spock paper)
+    @loses = %w(rock scissors)
+  end
+end
+
+class Spock < Move
+  def initialize
+    @value = 'spock'
+    @beats = %w(rock scissors)
+    @loses = %w(paper lizard)
   end
 end
 
@@ -66,11 +91,11 @@ class History
 
   def last_round_move
     return nil if moves.last.nil?
-    moves.last.value
+    moves.last
   end
 
   def last_move
-    @moves.last.value
+    @moves.last
   end
 
   def full_move_record
@@ -82,13 +107,17 @@ class Player
   attr_accessor :move, :name, :score, :history
 
   def initialize
-    set_name
     @score = 0
     @history = History.new
   end
 end
 
 class Human < Player
+  def initialize
+    set_name
+    super
+  end
+
   def set_name
     system "clear" || system("cls")
 
@@ -104,22 +133,22 @@ class Human < Player
 
   def choose
     choice = nil
-    loop do      
+    loop do
       puts "\nPlease choose between : #{valid_moves_display_version.joinor}."
       choice = gets.chomp
       break if Move::VALID_CHOICES.include?(choice)
       puts "Sorry, '#{choice}' is not a valid move"
     end
 
-    self.move = Move.new(adjust_for_shorthand(choice))
+    self.move = Object.const_get(adjust_for_shorthand(choice)).new
     @history.add(move)
   end
 
   def adjust_for_shorthand(choice)
     if Move::SHORTHAND_DICTIONARY.keys.include?(choice)
-      Move::SHORTHAND_DICTIONARY[choice]
+      Move::SHORTHAND_DICTIONARY[choice].capitalize
     else
-      choice
+      choice.capitalize
     end
   end
 
@@ -135,88 +164,107 @@ class Human < Player
 end
 
 class Computer < Player
-  PLAYERS = { 'Ultron' => :strategist,
-              'Bender' => :stubborn,
-              'Sophia' => :copycat,
-              'Reaper' => :clairvoyant }
+  PLAYERS = %w(Ultron Bender Sophia Reaper)
 
-  INTRO_MESSAGES = {
-    'Ultron' => "I won't fall for the same move twice!",
-    'Bender' => "Ah, so many choices, but it makes so little difference...",
-    'Sophia' => "I'll follow your every move!",
-    'Reaper' => "You've chosen certain doom. I will be the instrument of your unmaking."
-  }
-
-  def set_name    
-    puts "\nPick Your opponent, type in [1-#{PLAYERS.keys.size}]:"
-
-    choice = nil
-    loop do
-      display_choices
-      choice = gets.chomp.to_i
-      choice = nr_to_name(choice)
-      break if PLAYERS.keys.include?(choice)
-      puts "Sorry, that's not a valid choice"
-    end
-
-    self.name = choice
-  end
-
-  def nr_to_name(integer)
-    PLAYERS.keys[integer - 1]
-  end
-
-  def display_choices
-    PLAYERS.keys.each_with_index { |player, idx| puts "[#{idx + 1}] #{player}" }
+  def self.display_choices
+    PLAYERS.each_with_index { |player, idx| puts "[#{idx + 1}] #{player}" }
   end
 
   def choose(human_history)
-    move = pick_action_based_on_personality(human_history)
-    self.move = Move.new(move)
-    @history.add(self.move)
-  end
-
-  def pick_action_based_on_personality(history)
-    personality = PLAYERS[name]
-
-    case personality
-    when :strategist then make_counter_move(history)
-    when :stubborn then make_stubborn_move
-    when :copycat then make_copycat_move(history)
-    when :clairvoyant then make_clairvoyant_move(history)
-    end
-  end
-
-  def make_copycat_move(history)
-    if history.moves.empty?
-      make_random_move
-    else
-      history.last_round_move
-    end
+    self.move = make_move(human_history).new
+    @history.add(move)
   end
 
   def make_random_move
-    Move::VALID_MOVES.sample
+    Object.const_get(Move::VALID_MOVES.sample.capitalize)
+  end
+end
+
+class Ultron < Computer
+  INTRO_MESSAGE = "I won't fall for the same move twice!"
+
+  def initialize
+    @name = 'Ultron'
+    super
   end
 
-  def make_stubborn_move
-    if history.full_move_record.empty?
-      make_random_move
-    else
-      history.last_move
-    end
+  def make_move(human_history)
+    make_counter_move(human_history)
   end
+
+  private
 
   def make_counter_move(history)
     if history.moves.empty?
       make_random_move
     else
-      Move::LOSE_CONDITION[history.last_round_move].sample
+      Object.const_get(history.last_round_move.loses.sample.capitalize)
     end
   end
+end
+
+class Bender < Computer
+  INTRO_MESSAGE = "Ah, so many choices, but it makes so little difference..."
+
+  def initialize
+    @name = 'Bender'
+    super
+  end
+
+  def make_move(*)
+    make_stubborn_move
+  end
+
+  private
+
+  def make_stubborn_move
+    if history.full_move_record.empty?
+      make_random_move
+    else
+      history.last_move.class
+    end
+  end
+end
+
+class Sophia < Computer
+  INTRO_MESSAGE = "I'll follow your every move!"
+
+  def initialize
+    @name = 'Sophia'
+    super
+  end
+
+  def make_move(history)
+    make_copycat_move(history)
+  end
+
+  private
+
+  def make_copycat_move(history)
+    if history.moves.empty?
+      make_random_move
+    else
+      history.last_round_move.class
+    end
+  end
+end
+
+class Reaper < Computer
+  INTRO_MESSAGE = "You've chosen certain doom. I will be the instrument of your unmaking."
+
+  def initialize
+    @name = 'Reaper'
+    super
+  end
+
+  def make_move(history)
+    make_clairvoyant_move(history)
+  end
+
+  private
 
   def make_clairvoyant_move(history)
-    Move::LOSE_CONDITION[history.last_move].sample
+    Object.const_get(history.last_move.loses.sample.capitalize)
   end
 end
 
@@ -256,7 +304,21 @@ class RPSGame
   end
 
   def pick_opponent
-    @computer = Computer.new
+    puts "\nPick Your opponent, type in [1-#{Computer::PLAYERS.size}]:"
+    choice = retrieve_opponent_input
+    @computer = Object.const_get(choice.capitalize).new
+  end
+
+  def retrieve_opponent_input
+    choice = nil
+    loop do
+      Computer.display_choices
+      choice = gets.chomp
+      break if ("1"..Computer::PLAYERS.size.to_s).include?(choice)
+      system "clear" || system("cls")
+      puts "Sorry, that's not a valid choice"
+    end
+    choice = Computer::PLAYERS[choice.to_i - 1]
   end
 
   def reset_score
@@ -265,10 +327,6 @@ class RPSGame
 
   def reset_history
     human.history = History.new
-  end
-
-  def new_opponent
-    @computer = Computer.new(computer.name)
   end
 
   def round_loop
@@ -297,7 +355,7 @@ class RPSGame
   def display_opponent_and_intro_message
     system "clear" || system("cls")
     puts "You will be playing against #{computer.name}."
-    puts "#{computer.name} says \"#{Computer::INTRO_MESSAGES[computer.name]}\""
+    puts "#{computer.name} says \"#{@computer.class::INTRO_MESSAGE}\""
   end
 
   def display_moves
@@ -320,7 +378,7 @@ class RPSGame
     winner.score += 1 if winner == human || winner == computer
   end
 
-  def display_score    
+  def display_score
     puts "\n#{human.name} score: #{human.score}"
     puts "#{computer.name} score: #{computer.score}"
   end
@@ -348,7 +406,7 @@ class RPSGame
     end
   end
 
-  def display_goodbye_message    
+  def display_goodbye_message
     puts "\nThanks for playing RPS! Goodbye!"
   end
 
